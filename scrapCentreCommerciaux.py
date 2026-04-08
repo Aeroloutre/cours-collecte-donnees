@@ -1,56 +1,50 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from camoufox.sync_api import Camoufox
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 import time
+from datetime import datetime
 
-driver = webdriver.Chrome()
+def scrapCentreCommerciaux():
+    with Camoufox(headless=False, locale=["fr-FR"]) as browser:
+        page = browser.new_page()
 
-driver.get("https://www.google.com/maps/search/centre+commercial/@43.5987012,3.915776,15z/data=!4m2!2m1!6e6?entry=ttu&g_ep=EgoyMDI2MDQwNS4wIKXMDSoASAFQAw%3D%3D")
+        page.goto(
+            "https://www.google.com/maps/search/galeries+lafayette/@46.7623999,-0.8233315,6.27z"
+            "/data=!4m2!2m1!6e6?authuser=0&hl=fr&entry=ttu",
+            wait_until="domcontentloaded"
+        )
 
-wait = WebDriverWait(driver, 10)
+        # Accepter les cookies Google
+        try:
+            page.click('button:has-text("Tout accepter")', timeout=5000)
+        except PlaywrightTimeoutError:
+            pass
 
-# On accepte les cookies
-element = driver.find_element(By.XPATH, '//*[text()="Tout accepter"]').click()
+        # Attendre le feed de résultats
+        page.wait_for_selector('div[role="feed"]', timeout=10000)
+        scrollable_div = page.query_selector('div[role="feed"]')
 
-# On scroll la page pour charger tous les résultats
-scrollable_div = wait.until(
-    EC.presence_of_element_located((By.CSS_SELECTOR, 'div[role="feed"]'))
-)
+        last_count = 0
+        while True:
+            articles = page.query_selector_all('div[role="article"]')
+            new_count = len(articles)
 
-last_count = 0
+            scrollable_div.evaluate("el => el.scrollBy(0, 1000)")
+            time.sleep(1.5)
 
-while True:
-    # récupérer les articles
-    articles = driver.find_elements(By.CSS_SELECTOR, 'div[role="article"]')
-    print("Nombre:", len(articles))
+            articles_after = page.query_selector_all('div[role="article"]')
+            new_count_after = len(articles_after)
 
-    # scroll
-    driver.execute_script(
-        "arguments[0].scrollBy(0, 1000);",
-        scrollable_div
-    )
+            if new_count_after == last_count:
+                break
+            last_count = new_count_after
 
-    time.sleep(1.5)
+        articles = page.query_selector_all('div[role="article"]')
+        commercial_centers = []
+        for article in articles:
+            nom = article.get_attribute("aria-label")
+            if nom:
+                commercial_centers.append(nom)
 
-    # Récuperer les artciles après le scroll
-    new_articles = driver.find_elements(By.CSS_SELECTOR, 'div[role="article"]')
-    new_count = len(new_articles)
-
-    if new_count == last_count:
-        break
-
-    last_count = new_count
-
-# Je récupère toutes les boutiques du centre commercial
-articles = driver.find_elements(By.CSS_SELECTOR, 'div[role="article"]')
-
-for article in articles:
-    nom = article.get_attribute("aria-label")
-
-# On filtre les résultats pour ne garder que les centres commerciaux
-filtre = [el for el in nom if "centre commercial" in el.lower()]
-
-print(filtre)
+        filtered = [c for c in commercial_centers if "Galeries Lafayette" in c]
+        print(filtered)
+        return filtered
