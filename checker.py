@@ -1,12 +1,10 @@
 import csv
 import os
-from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set
 from datetime import datetime
 
-
+# Pour parser les CSV qui sont enregistrés
 def parse_csv_file(filepath: str) -> Dict[str, Set[str]]:
-    """Parse a CSV file and return a dictionary of stores with their brands as sets."""
     stores = {}
     
     with open(filepath, "r", encoding="utf-8") as csvfile:
@@ -26,9 +24,8 @@ def parse_csv_file(filepath: str) -> Dict[str, Set[str]]:
     
     return stores
 
-
+# Pour comparter les deux fichiers CSV et identifier les changements
 def compare_csv_files(old_file: str, new_file: str) -> Dict:
-    """Compare two CSV files and return detailed changes."""
     old_stores = parse_csv_file(old_file)
     new_stores = parse_csv_file(new_file)
     
@@ -68,7 +65,7 @@ def compare_csv_files(old_file: str, new_file: str) -> Dict:
                 "status": "unchanged"
             }
     
-    # Check for new stores
+    # On regarder si il y a de nouvelle boutique
     for store_name, new_brands in new_stores.items():
         if store_name not in old_stores:
             results["stores"][store_name] = {
@@ -80,19 +77,16 @@ def compare_csv_files(old_file: str, new_file: str) -> Dict:
             }
             results["summary"]["stores_appeared"].append(store_name)
     
-    # Identify disappeared stores
+    # On regarde si des boutiques on disparue
     for store_name in old_stores:
         if store_name not in new_stores:
             results["summary"]["stores_disappeared"].append(store_name)
     
     return results
 
-
 def export_comparison_to_json(results: Dict, output_file: str = "comparison_report.json") -> None:
-    """Export comparison results to JSON format."""
     import json
     
-    # Convert sets to lists for JSON serialization
     json_results = {
         "stores": {},
         "summary": results["summary"]
@@ -112,15 +106,13 @@ def export_comparison_to_json(results: Dict, output_file: str = "comparison_repo
     
     print(f"✓ Rapport exporté dans {output_file}")
 
-
+# Pour avoir la liste des fichiers CSV dans le bon ordre
 def get_all_timestamped_files() -> List[str]:
-    """Get all timestamped CSV files sorted chronologically."""
     files = [f for f in os.listdir(".") if f.startswith("boutiques_") and f.endswith(".csv")]
     return sorted(files)
 
-
+# On génère le fichier avec toutes les comparaisons
 def generate_history() -> List[str]:
-    """Generate a list of all brand changes across all CSV files in chronological order."""
     files = get_all_timestamped_files()
     
     if len(files) < 2:
@@ -142,9 +134,8 @@ def generate_history() -> List[str]:
     
     return all_changes
 
-
+# La fonction qui est appelé pour checker et sauvegarder le tout au format txt
 def save_changes_to_txt(output_file: str = None) -> str:
-    """Generate all changes and save them to a timestamped .txt file. Returns the filename."""
     if output_file is None:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         output_file = f"changes_{timestamp}.txt"
@@ -155,41 +146,15 @@ def save_changes_to_txt(output_file: str = None) -> str:
         for change in changes:
             f.write(change + "\n")
     
-    print(f"✓ Changements sauvegardés dans {output_file} ({len(changes)} changements)")
+    print(f"Changements sauvegardés dans {output_file} ({len(changes)} changements)")
     return output_file
 
-
-def display_history() -> None:
-    """Display all changes in the console."""
-    changes = generate_history()
-    
-    if not changes:
-        print("Aucun changement")
-        return
-    
-    print("\nHistorique des changements de marques:\n")
-    for change in changes:
-        print(change)
-
-
 if __name__ == "__main__":
-    print("=" * 70)
-    print("VÉRIFICATION MULTI-FICHIERS - CHECKER")
-    print("=" * 70)
     
     files = get_all_timestamped_files()
     
-    if len(files) < 2:
-        print("\n⚠ Pas assez de fichiers CSV pour effectuer une comparaison.")
-        print(f"  Fichiers trouvés: {len(files)}")
-        exit(1)
+    print(f"Fichiers trouvés: {len(files)}")
     
-    print(f"\n✓ {len(files)} fichiers CSV détectés\n")
-    
-    # Generate and save changes to txt file
     output_file = save_changes_to_txt()
-    
-    # Also display in console
-    print("\nAperçu des changements:")
-    display_history()
+    print(f"Rapport complet des changements sauvegardé dans {output_file}")
 
